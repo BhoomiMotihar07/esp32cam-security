@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.data/
+*.log
+.DS_Store
+
+# secrets: only the *.example files are committed
+.env
+.env.*
+!.env.example
+api/local.settings.json
+firmware/include/secrets.h
+
+# PlatformIO
+firmware/.pio/
+firmware/.vscode/
+
+# vite
+app/dist/
+app/.vite/
+api/deploy/

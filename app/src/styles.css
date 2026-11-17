@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-armed: #10b981;
+  --color-alarm: #ef4444;
+  --color-warn: #f59e0b;
+  --color-panel: #111a2e;
+  --color-panel-2: #182340;
+}
+
+html, body, #root { height: 100%; }
+body { -webkit-tap-highlight-color: transparent; }
+
+.card { @apply bg-panel rounded-2xl p-4 shadow-lg shadow-black/30; }
+/* Tailwind v4 only lets @apply reuse classes declared with @utility, hence btn is a utility. */
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-medium transition active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none; }
+.btn-primary { @apply btn bg-emerald-500 text-slate-950 hover:bg-emerald-400; }
+.btn-danger { @apply btn bg-red-500 text-white hover:bg-red-400; }
+.btn-ghost { @apply btn bg-panel-2 text-slate-100 hover:bg-slate-700; }
+.input { @apply w-full rounded-xl bg-panel-2 px-3 py-2.5 text-slate-100 placeholder:text-slate-500 outline-none ring-emerald-500/60 focus:ring-2; }
+.label { @apply block text-xs uppercase tracking-wide text-slate-400 mb-1; }

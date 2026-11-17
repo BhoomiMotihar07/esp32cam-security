@@ -1,0 +1,26 @@
+// Copy to include/secrets.h (gitignored) and fill in. Never commit secrets.h.
+#pragma once
+
+#define WIFI_SSID        "your-wifi"
+#define WIFI_PASSWORD    "your-password"
+
+// Identity shared with the app: register the same id + upload key under Family → Devices.
+#define DEVICE_ID        "cam-01"
+#define DEVICE_UPLOAD_KEY "dev-upload-key-123"
+
+// Azure IoT Hub (az iot hub device-identity show -n <hub> -d cam-01 --query authentication.symmetricKey.primaryKey)
+// Leave AZURE_IOT_HUB_HOST empty to run without Azure: events then go straight to Telegram.
+#define AZURE_IOT_HUB_HOST   "your-hub.azure-devices.net"
+#define AZURE_DEVICE_KEY     "base64-primary-key"
+
+// Bench testing before Azure: set to 1 and leave AZURE_IOT_HUB_HOST empty. The camera then sends
+// heartbeats/events to the laptop dev server at API_BASE_URL (http://<laptop LAN IP>:7071/api)
+// and polls it for commands. Plain HTTP, no device auth: LAN only.
+#define USE_LOCAL_DEV_SERVER 0
+
+// Functions API base, e.g. https://homesec-func.azurewebsites.net/api  (or http://<laptop-ip>:7071/api for the local dev server)
+#define API_BASE_URL     "https://your-func.azurewebsites.net/api"
+
+// Telegram direct fallback (optional; the backend normally sends alerts)
+#define TELEGRAM_BOT_TOKEN ""
+#define TELEGRAM_CHAT_ID   ""
