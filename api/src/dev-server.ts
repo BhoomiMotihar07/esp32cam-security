@@ -1,9 +1,12 @@
 /**
- * Local-mode runner: serves the route table over Node http (same handlers the Functions
- * host runs), plus the two timers. No Azure account, emulator or Core Tools required.
+ * Standalone server: serves the route table over Node http (the same handlers the Functions host
+ * runs) plus the two timers. Used for local development and for the Supabase deployment on Render.
+ * With STATIC_DIR set it also serves the built PWA, so app and API share one origin.
  *   npm run dev -w api      →  http://localhost:7071/api
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize, resolve } from "node:path";
 import { TIMING } from "@esp32cam/shared";
 import { buildRoutes } from "./routes.js";
 import { compileRoute, matchRoute } from "./http/match.js";
@@ -14,6 +17,29 @@ import { checkOfflineDevices } from "./domain/offline.js";
 import { repeatPendingAlerts } from "./domain/alerts.js";
 
 const MAX_BODY = 4 * 1024 * 1024;
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml",
+  ".png": "image/png", ".json": "application/json", ".webmanifest": "application/manifest+json", ".map": "application/json",
+};
+
+/** Serves a file from the PWA build, falling back to index.html for client-side routes. */
+async function serveStatic(root: string, urlPath: string): Promise<Res> {
+  const base = resolve(root);
+  const target = normalize(join(base, decodeURIComponent(urlPath)));
+  if (!target.startsWith(base)) return { status: 403 };
+  const tryFile = async (file: string) => {
+    try { return await readFile(file); } catch { return null; }
+  };
+  let file = urlPath.endsWith("/") ? null : target;
+  let body = file ? await tryFile(file) : null;
+  if (!body) { file = join(base, "index.html"); body = await tryFile(file); }
+  if (!body || !file) return { status: 404, body: "not found" };
+  const ext = extname(file);
+  // hashed assets can be cached forever; index.html and sw.js must stay fresh
+  const cache = file.includes(`${"/"}assets${"/"}`) ? "public, max-age=31536000, immutable" : "no-cache";
+  return { status: 200, headers: { "content-type": MIME[ext] ?? "application/octet-stream", "cache-control": cache }, body: new Uint8Array(body) };
+}
 
 async function readBody(req: IncomingMessage): Promise<Uint8Array> {
   const chunks: Buffer[] = [];
@@ -28,7 +54,7 @@ async function readBody(req: IncomingMessage): Promise<Uint8Array> {
 
 function main(): void {
   const svc = getServices();
-  if (svc.config.mode !== "local") svc.log.warn("dev-server running against Azure adapters (APP_MODE=azure)");
+  if (svc.config.mode === "azure") svc.log.warn("standalone server running against Azure adapters; IoT Hub ingest needs the Functions host");
   const routes = buildRoutes(svc).map((r) => ({ ...r, compiled: compileRoute(r.route) }));
   const cors = {
     "access-control-allow-origin": svc.config.appOrigin,
@@ -39,6 +65,7 @@ function main(): void {
 
   const server = createServer(async (nodeReq: IncomingMessage, nodeRes: ServerResponse) => {
     const url = new URL(nodeReq.url ?? "/", "http://localhost");
+    const isApi = url.pathname === "/api" || url.pathname.startsWith("/api/");
     const path = url.pathname.replace(/^\/api\/?/, "");
     const method = (nodeReq.method ?? "GET").toUpperCase();
     const send = (res: Res) => {
@@ -46,6 +73,7 @@ function main(): void {
       nodeRes.end(res.body);
     };
     if (method === "OPTIONS") return send({ status: 204 });
+    if (!isApi && svc.config.staticDir && method === "GET") return send(await serveStatic(svc.config.staticDir, url.pathname));
 
     let matched: { route: (typeof routes)[number]; params: Record<string, string> } | null = null;
     for (const route of routes) {
@@ -80,7 +108,7 @@ function main(): void {
   });
 
   server.listen(svc.config.devPort, () => {
-    svc.log.info(`dev-server listening on http://localhost:${svc.config.devPort}/api (mode=${svc.config.mode}, data=${svc.config.localDataDir})`);
+    svc.log.info(`server listening on port ${svc.config.devPort} (mode=${svc.config.mode}${svc.config.mode === "local" ? `, data=${svc.config.localDataDir}` : ""}${svc.config.staticDir ? `, serving app from ${svc.config.staticDir}` : ""})`);
     svc.log.info(`telegram: ${svc.telegram ? "configured" : "off"}, push: ${svc.push ? "configured" : "off"}`);
   });
 

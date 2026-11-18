@@ -96,12 +96,17 @@ flowchart TB
 routes never import an SDK, which is what makes every slice testable on a laptop without an Azure
 account and lets the unit tests run in milliseconds against the memory store.
 
-## Local mode vs Azure mode
+## Local, Supabase and Azure modes
+
+Supabase mode uses the same HTTPS device routes as local mode, with Postgres, Storage and a
+command table behind them; see [setup-supabase.md](setup-supabase.md).
+
+### Local vs Azure
 
 | concern | local (`npm run dev -w api`) | Azure |
 |---|---|---|
-| device → cloud | `POST /api/local/device/{id}/telemetry` | IoT Hub D2C → Event Hub trigger |
-| cloud → device | `GET /api/local/device/{id}/commands` long-poll | IoT Hub C2D (`azure-iothub`) |
+| device → cloud | `POST /api/device/{id}/telemetry` (device key) | IoT Hub D2C → Event Hub trigger |
+| cloud → device | `GET /api/device/{id}/commands` (device key) | IoT Hub C2D (`azure-iothub`) |
 | photos | `PUT/GET /api/local/blob/{name}?perm=&exp=&sig=` (HMAC) | Blob SAS (`sp=cw` write, `sp=r` read) |
 | data | `.data/store.json` | Cosmos DB |
 | timers | `setInterval` | timer triggers |

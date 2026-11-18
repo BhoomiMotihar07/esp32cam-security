@@ -9,15 +9,17 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "dev": "tsx --env-file-if-exists=.env src/dev-server.ts",
-    "start": "func start",
+    "start": "npx --yes azure-functions-core-tools@4 start",
     "prestart": "npm run build",
-    "bundle": "node scripts/bundle.mjs"
+    "bundle": "node scripts/bundle.mjs",
+    "serve": "node dist/dev-server.js"
   },
   "dependencies": {
     "@azure/cosmos": "^4.1.1",
     "@azure/functions": "^4.5.1",
     "@azure/storage-blob": "^12.25.0",
     "@esp32cam/shared": "*",
+    "@supabase/supabase-js": "^2.119.0",
     "azure-iot-common": "^1.13.3",
     "azure-iothub": "^1.16.5",
     "bcryptjs": "^2.4.3",
@@ -28,9 +30,8 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.9.0",
     "@types/web-push": "^3.6.4",
-    "azure-functions-core-tools": "^4.0.6610",
+    "esbuild": "^0.24.0",
     "tsx": "^4.19.2",
-    "vitest": "^2.1.4",
-    "esbuild": "^0.24.0"
+    "vitest": "^2.1.4"
   }
 }

@@ -28,6 +28,7 @@ private:
   static void taskEntry(void* arg);
   void run();
   void handleJob(Job& job);
+  void setupOta();   // ArduinoOTA: later firmware updates over Wi-Fi, no USB
   bool publish(const char* json, size_t len); // IoT Hub, or the laptop dev server in local mode
   void stampIfUnset(Job& job);
   bool sendEvent(EventJob& ev);
@@ -47,4 +48,5 @@ private:
   Job offline_[MAX_QUEUED_EVENTS];
   int offlineCount_ = 0;
   uint32_t bootMs_ = 0;
+  bool otaStarted_ = false;
 };

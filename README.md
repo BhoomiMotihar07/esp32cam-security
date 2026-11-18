@@ -122,8 +122,10 @@ reason in every heartbeat tells you if it browned out.
 
 ## Setup
 
-1. Azure (IoT Hub F1, Storage, Cosmos free tier, Functions Consumption, Static Web Apps Free),
-   with exact `az` commands: [`docs/setup-azure.md`](docs/setup-azure.md).
+1. Cloud, either:
+   - **Supabase + Render** (free, no card, what this build deploys today): [`docs/setup-supabase.md`](docs/setup-supabase.md), or
+   - **Azure** as the course spec names it (IoT Hub F1, Storage, Cosmos, Functions, Static Web Apps):
+     [`docs/setup-azure.md`](docs/setup-azure.md).
 2. Telegram bot, webhook and chat linking: [`docs/setup-telegram.md`](docs/setup-telegram.md).
 3. Firmware: `cp firmware/include/secrets.example.h firmware/include/secrets.h`, fill in, `pio run -t upload`.
 4. App: register with the `SETUP_CODE`, claim the device, draw zones on a snapshot, invite family.

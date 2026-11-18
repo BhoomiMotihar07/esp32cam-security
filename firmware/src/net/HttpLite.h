@@ -17,7 +17,8 @@ public:
   static HttpResult put(const String& url, const uint8_t* data, size_t len, const char* contentType,
                         const char* const* extraHeaders = nullptr, int extraCount = 0);
   // POST with an in-memory body (JSON).
-  static HttpResult post(const String& url, const uint8_t* data, size_t len, const char* contentType);
+  static HttpResult post(const String& url, const uint8_t* data, size_t len, const char* contentType,
+                         const char* headerName = nullptr, const char* headerValue = nullptr);
   // Multipart POST with one text field set and one file part (Telegram sendPhoto).
   static HttpResult postMultipart(const String& url, const String& fields /* already formatted parts */,
                                   const char* fileField, const char* fileName, const uint8_t* file, size_t fileLen,

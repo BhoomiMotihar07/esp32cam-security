@@ -42,3 +42,16 @@ export function renderFrame(opts: { seed: number; brightness: number; label: str
 
 const clamp = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
 function hash(s: string): number { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; }
+
+/**
+ * Bridge mode: fetch a real JPEG from an ESP32-CAM running the Arduino CameraWebServer example
+ * (GET http://<board>/capture). Lets the app show real photos before this project's firmware is
+ * flashed. Detection still comes from the simulator keys; only the pictures are real.
+ */
+export async function captureFromBoard(baseUrl: string, timeoutMs = 8000): Promise<Uint8Array> {
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/capture?_=${Date.now()}`, { signal: AbortSignal.timeout(timeoutMs) });
+  if (!res.ok) throw new Error(`board /capture returned ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) throw new Error("board /capture did not return a JPEG");
+  return bytes;
+}

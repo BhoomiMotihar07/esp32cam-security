@@ -12,6 +12,10 @@ import { LocalBlobs } from "./adapters/local-blobs.js";
 import { AzureBlobs } from "./adapters/azure-blobs.js";
 import { LocalLink } from "./adapters/local-link.js";
 import { IotHubLink } from "./adapters/iothub-link.js";
+import { SupabaseStore } from "./adapters/supabase-store.js";
+import { SupabaseBlobs } from "./adapters/supabase-blobs.js";
+import { SupabaseLink } from "./adapters/supabase-link.js";
+import { createClient } from "@supabase/supabase-js";
 import { TelegramClient } from "./domain/telegram-client.js";
 import { PushSender } from "./domain/push.js";
 import { consoleLogger, type Logger } from "./util.js";
@@ -36,7 +40,13 @@ export function createServices(config: AppConfig, overrides: Partial<Services> =
   let link: DeviceLink;
   let local: Services["local"];
 
-  if (config.mode === "azure") {
+  if (config.mode === "supabase") {
+    // service-role key: bypasses RLS, so this client must never leave the server
+    const db = createClient(config.supabase.url, config.supabase.serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    store = new SupabaseStore(db);
+    blobs = new SupabaseBlobs(db, config.supabase.bucket);
+    link = new SupabaseLink(db);
+  } else if (config.mode === "azure") {
     store = new CosmosStore(config.cosmos.connectionString, config.cosmos.database);
     blobs = new AzureBlobs(config.storage.connectionString, config.storage.container);
     link = new IotHubLink(config.iotHub.serviceConnectionString);

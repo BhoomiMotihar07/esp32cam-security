@@ -1,5 +1,6 @@
 #include "NetworkTask.h"
 #include <ArduinoJson.h>
+#include <ArduinoOTA.h>
 #include "Messages.h"
 #include "../config.h"
 #include "../../include/secrets.h"
@@ -12,7 +13,7 @@
 NetworkTask::NetworkTask(QueueHandle_t jobs, QueueHandle_t commands)
     : jobs_(jobs), commands_(commands),
       azure_(AZURE_IOT_HUB_HOST, DEVICE_ID, AZURE_DEVICE_KEY),
-      local_(API_BASE_URL, DEVICE_ID),
+      local_(API_BASE_URL, DEVICE_ID, DEVICE_UPLOAD_KEY),
       blobs_(API_BASE_URL, DEVICE_ID, DEVICE_UPLOAD_KEY),
       telegram_(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID) {}
 
@@ -22,7 +23,7 @@ void NetworkTask::start() {
   azure_.onCommand([this](const char* json, size_t len) { onC2D(json, len); });
   local_.onCommand([this](const char* json, size_t len) { onC2D(json, len); });
   useLocal_ = USE_LOCAL_DEV_SERVER && !azure_.configured();
-  log_i("cloud link: %s", azure_.configured() ? "Azure IoT Hub" : useLocal_ ? "local dev server (LAN)" : "none (Telegram fallback only)");
+  log_i("cloud link: %s", azure_.configured() ? "Azure IoT Hub" : useLocal_ ? "HTTPS device link (" API_BASE_URL ")" : "none (Telegram fallback only)");
   // 12 KB stack: TLS handshakes for HTTPS uploads happen on this task.
   xTaskCreatePinnedToCore(taskEntry, "net", 12288, this, 1, nullptr, 0);
 }
@@ -33,6 +34,10 @@ void NetworkTask::run() {
   Job job;
   for (;;) {
     wifi_.loop();
+    if (wifi_.connected()) {
+      if (!otaStarted_) setupOta();
+      ArduinoOTA.handle();
+    }
     azure_.loop(wifi_.connected(), wifi_.timeValid());
     if (useLocal_ && wifi_.connected() && wifi_.timeValid()) local_.poll(millis());
     if (cloudUp() && offlineCount_ > 0) drainOffline();
@@ -67,6 +72,20 @@ void NetworkTask::handleJob(Job& job) {
       if (!sendEvent(job.event)) queueOffline(job); else freePhotos(job.event);
       return;
   }
+}
+
+// Over-the-air updates: after the first USB flash, `pio run -e esp32cam-ota -t upload` sends new
+// firmware over Wi-Fi. Password-protected with the device upload key; the min_spiffs partition
+// keeps two app slots, so a failed update leaves the old firmware running.
+void NetworkTask::setupOta() {
+  ArduinoOTA.setHostname(DEVICE_ID);
+  ArduinoOTA.setPassword(DEVICE_UPLOAD_KEY);
+  ArduinoOTA.onStart([]() { log_w("OTA update starting"); });
+  ArduinoOTA.onEnd([]() { log_w("OTA update done, rebooting"); });
+  ArduinoOTA.onError([](ota_error_t e) { log_e("OTA error %u", e); });
+  ArduinoOTA.begin();
+  otaStarted_ = true;
+  log_i("OTA ready: %s.local / %s", DEVICE_ID, WiFi.localIP().toString().c_str());
 }
 
 bool NetworkTask::publish(const char* json, size_t len) {

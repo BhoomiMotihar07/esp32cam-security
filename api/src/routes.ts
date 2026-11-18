@@ -10,7 +10,7 @@ import type { Services } from "./services.js";
 import { authorize, requireHouseholdDevice, requirePrincipal, type Principal } from "./auth/principal.js";
 import { buildCommand, claimDevice, getOrCreateConfig, renameDevice, toDeviceView, updateConfig, type UserCommand } from "./domain/devices.js";
 import { acknowledgeEvent } from "./domain/alerts.js";
-import { grantUpload, readUrlFor } from "./domain/photos.js";
+import { authenticateDevice, grantUpload, readUrlFor } from "./domain/photos.js";
 import { changeRole, createInvite, login, register, removeMember, toUserView } from "./domain/accounts.js";
 import { createLinkCode, handleUpdate, type TelegramUpdate } from "./domain/telegram-commands.js";
 import { ingestMessage } from "./domain/ingest.js";
@@ -208,16 +208,24 @@ export function buildRoutes(svc: Services): Route[] {
       return noContent();
     }) },
 
-    // ---- local mode only: stand-ins for IoT Hub and Blob Storage ----
-    { name: "local-telemetry", method: "POST", route: "local/device/{deviceId}/telemetry", localOnly: true, handler: async (req) => {
-      const result = await ingestMessage(svc, param(req, "deviceId"), await req.json());
+    // ---- devices over HTTPS (local and Supabase modes; Azure devices use IoT Hub MQTT instead) ----
+    // Authenticated with the device key; the device id in the URL is the identity that ingest trusts.
+    { name: "device-telemetry", method: "POST", route: "device/{deviceId}/telemetry", handler: async (req) => {
+      const deviceId = param(req, "deviceId");
+      await authenticateDevice(svc, deviceId, req.header("x-device-key"));
+      const result = await ingestMessage(svc, deviceId, await req.json());
       return json(result, result.accepted ? 202 : 400);
     } },
-    { name: "local-commands", method: "GET", route: "local/device/{deviceId}/commands", localOnly: true, handler: async (req) => {
-      if (!svc.local) throw new HttpError(404, "not_local_mode");
-      const wait = Math.min(Number(req.query.get("wait") ?? 20000), 25000);
-      return json(await svc.local.link.take(param(req, "deviceId"), wait));
+    { name: "device-commands", method: "GET", route: "device/{deviceId}/commands", handler: async (req) => {
+      const deviceId = param(req, "deviceId");
+      await authenticateDevice(svc, deviceId, req.header("x-device-key"));
+      if (!svc.link.take) throw new HttpError(404, "not_supported", "this deployment delivers commands over IoT Hub");
+      // Kept short: hosts such as Render close idle requests, and the ESP32 polls with wait=0.
+      const wait = Math.min(Math.max(Number(req.query.get("wait") ?? 0), 0), 15000);
+      return json(await svc.link.take(deviceId, Number.isFinite(wait) ? wait : 0));
     } },
+
+    // ---- local mode only: stand-in for Blob Storage ----
     { name: "local-blob-put", method: "PUT", route: "local/blob/{*name}", localOnly: true, handler: async (req) => localBlob(req, "w") },
     { name: "local-blob-get", method: "GET", route: "local/blob/{*name}", localOnly: true, handler: async (req) => localBlob(req, "r") },
   ];

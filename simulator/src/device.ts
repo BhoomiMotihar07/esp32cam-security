@@ -8,7 +8,7 @@ import {
 } from "@esp32cam/shared";
 import type { CloudLink } from "./links/types.js";
 import { Uploader } from "./uploader.js";
-import { renderFrame } from "./camera.js";
+import { captureFromBoard, renderFrame } from "./camera.js";
 
 export type TriggerType = EventMessage["type"];
 
@@ -18,6 +18,8 @@ export interface DeviceOptions {
   uploader: Uploader;
   log: (s: string) => void;
   heartbeatSec?: number;
+  /** Bridge mode: take photos from a real ESP32-CAM's CameraWebServer instead of synthetic frames */
+  cameraUrl?: string;
 }
 
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -72,9 +74,9 @@ export class SimulatedDevice {
       const ts = nowSec();
       const photos: string[] = [];
       for (let seq = 0; seq < TIMING.BURST_PHOTOS; seq++) {
-        const frame = renderFrame({ seed: ++this.frameSeed, brightness: type === "tamper_dark" ? 0.03 : this.sceneBrightness, label: `${type}-${seq}` });
         try {
-          photos.push(await this.o.uploader.upload(seq, frame.jpeg));
+          const jpeg = await this.photo(type === "tamper_dark" ? 0.03 : this.sceneBrightness, `${type}-${seq}`);
+          photos.push(await this.o.uploader.upload(seq, jpeg));
         } catch (err) {
           this.o.log(`photo ${seq} upload failed: ${(err as Error).message}`);
         }
@@ -106,14 +108,19 @@ export class SimulatedDevice {
   }
 
   private async snapshot(): Promise<void> {
-    const frame = renderFrame({ seed: ++this.frameSeed, brightness: this.sceneBrightness, label: "snapshot" });
     try {
-      const blob = await this.o.uploader.upload(0, frame.jpeg);
+      const blob = await this.o.uploader.upload(0, await this.photo(this.sceneBrightness, "snapshot"));
       await this.o.link.publish({ kind: "snapshot", deviceId: this.o.deviceId, blob, ts: nowSec() });
       this.o.log(`snapshot uploaded ${blob}`);
     } catch (err) {
       this.o.log(`snapshot failed: ${(err as Error).message}`);
     }
+  }
+
+  /** Real board photo in bridge mode, synthetic frame otherwise. */
+  private async photo(brightness: number, label: string): Promise<Uint8Array> {
+    if (this.o.cameraUrl) return captureFromBoard(this.o.cameraUrl);
+    return renderFrame({ seed: ++this.frameSeed, brightness, label }).jpeg;
   }
 
   // ---- periodic ----

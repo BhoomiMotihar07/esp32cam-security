@@ -1,0 +1,38 @@
+# Render Blueprint: the Node server (API + timers + built PWA on one origin) for the Supabase backend.
+# Free plan. Secrets marked sync:false are entered in the Render dashboard, never committed.
+services:
+  - type: web
+    name: esp32cam-security
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build -w shared && npm run build -w api && npm run build -w app
+    startCommand: npm run serve -w api
+    healthCheckPath: /api/push/vapid-public-key
+    envVars:
+      - key: APP_MODE
+        value: supabase
+      - key: STATIC_DIR
+        value: ../app/dist
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: evidence
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SETUP_CODE
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:owner@example.com
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: ALERT_MAX_REPEATS
+        value: "20"

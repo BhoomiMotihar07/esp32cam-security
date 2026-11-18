@@ -13,9 +13,10 @@
 #define AZURE_IOT_HUB_HOST   "your-hub.azure-devices.net"
 #define AZURE_DEVICE_KEY     "base64-primary-key"
 
-// Bench testing before Azure: set to 1 and leave AZURE_IOT_HUB_HOST empty. The camera then sends
-// heartbeats/events to the laptop dev server at API_BASE_URL (http://<laptop LAN IP>:7071/api)
-// and polls it for commands. Plain HTTP, no device auth: LAN only.
+// HTTPS device link instead of IoT Hub: set to 1 and leave AZURE_IOT_HUB_HOST empty. The camera
+// sends heartbeats/events to API_BASE_URL and polls it for commands, authenticated with
+// DEVICE_UPLOAD_KEY. API_BASE_URL is the Supabase deployment (https://<service>.onrender.com/api)
+// or, on the bench, the laptop dev server (http://<laptop LAN IP>:7071/api).
 #define USE_LOCAL_DEV_SERVER 0
 
 // Functions API base, e.g. https://homesec-func.azurewebsites.net/api  (or http://<laptop-ip>:7071/api for the local dev server)

@@ -1,6 +1,6 @@
 /**
  * Local-mode DeviceLink: a per-device in-memory queue. The simulator long-polls
- * GET /api/local/device/{id}/commands, which calls `take()`.
+ * GET /api/device/{id}/commands, which calls `take()`.
  */
 import type { DeviceCommand } from "@esp32cam/shared";
 import type { DeviceLink } from "../ports/device-link.js";

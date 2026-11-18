@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
  * Device simulator CLI.
- *   npm run sim -- --link local                  interactive (keys below)
+ *   npm run sim -- --link local                  interactive (keys below); HTTPS device link, also for Supabase
  *   npm run sim -- --script "button,wait:2,arm0,motion,wait:3,quit"   scripted smoke run
  *   npm run sim -- --link iothub                 real IoT Hub (IOTHUB_DEVICE_CONNECTION_STRING)
+ *   npm run sim -- --camera-url http://<board ip>   real photos from an ESP32-CAM running CameraWebServer
  */
 import { SimulatedDevice } from "./device.js";
-import { LocalCloudLink } from "./links/local-link.js";
+import { HttpCloudLink } from "./links/http-link.js";
 import { IotHubCloudLink } from "./links/iothub-link.js";
 import { Uploader } from "./uploader.js";
 
@@ -16,13 +17,15 @@ const uploadKey = args["key"] ?? process.env["SIM_UPLOAD_KEY"] ?? "dev-upload-ke
 const apiBase = args["api"] ?? process.env["SIM_API_BASE"] ?? "http://localhost:7071/api";
 const linkMode = args["link"] ?? process.env["SIM_LINK"] ?? "local";
 const heartbeatSec = args["heartbeat"] ? Number(args["heartbeat"]) : undefined;
+const cameraUrl = args["camera-url"] ?? process.env["SIM_CAMERA_URL"];
 
 const log = (s: string) => console.log(`${new Date().toISOString().slice(11, 19)} [sim ${deviceId}] ${s}`);
 
 const link = linkMode === "iothub"
   ? new IotHubCloudLink(requireEnv("IOTHUB_DEVICE_CONNECTION_STRING"), log)
-  : new LocalCloudLink(apiBase, deviceId, log);
-const device = new SimulatedDevice({ deviceId, link, uploader: new Uploader(apiBase, deviceId, uploadKey), log, heartbeatSec });
+  : new HttpCloudLink(apiBase, deviceId, uploadKey, log);
+const device = new SimulatedDevice({ deviceId, link, uploader: new Uploader(apiBase, deviceId, uploadKey), log, heartbeatSec, cameraUrl });
+if (cameraUrl) log(`bridge mode: photos come from the real camera at ${cameraUrl}/capture`);
 
 const HELP = `keys: m motion · s sound · d toggle dark · t tamper (moved) · c tamper (covered) · b button · o pause/resume heartbeats · r brown-out reset · a arm now · h help · q quit`;
 

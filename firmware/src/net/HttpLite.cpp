@@ -64,11 +64,13 @@ HttpResult HttpLite::put(const String& url, const uint8_t* data, size_t len, con
   return r;
 }
 
-HttpResult HttpLite::post(const String& url, const uint8_t* data, size_t len, const char* contentType) {
+HttpResult HttpLite::post(const String& url, const uint8_t* data, size_t len, const char* contentType,
+                          const char* hName, const char* hValue) {
   HttpResult r;
   esp_http_client_handle_t c = open(url, HTTP_METHOD_POST, 15000);
   if (!c) return r;
   esp_http_client_set_header(c, "Content-Type", contentType);
+  if (hName) esp_http_client_set_header(c, hName, hValue);
   if (esp_http_client_open(c, len) == ESP_OK) {
     esp_http_client_write(c, (const char*)data, len);
     esp_http_client_fetch_headers(c);
